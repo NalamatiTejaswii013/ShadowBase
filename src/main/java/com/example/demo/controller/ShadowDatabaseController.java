@@ -23,28 +23,36 @@ public class ShadowDatabaseController {
         this.shadowDatabaseService = shadowDatabaseService;
     }
 
-    // Create Shadow Database
+    // ==============================
+    // CREATE SHADOW DATABASE
+    // ==============================
     @PostMapping("/create")
     public String createShadowDatabase() {
 
         return shadowDatabaseService.createShadowDatabase();
     }
 
-    // Check status
+    // ==============================
+    // CHECK STATUS
+    // ==============================
     @GetMapping("/status")
     public String getStatus() {
 
         return shadowDatabaseService.getStatus();
     }
 
-    // Stop Shadow Database
+    // ==============================
+    // STOP DATABASE
+    // ==============================
     @PostMapping("/stop")
     public String stopShadowDatabase() {
 
         return shadowDatabaseService.stopShadowDatabase();
     }
 
-    // Add Employee
+    // ==============================
+    // ADD EMPLOYEE
+    // ==============================
     @PostMapping("/employees")
     public String addEmployee(
             @RequestBody Map<String, Object> employee) {
@@ -57,13 +65,28 @@ public class ShadowDatabaseController {
                         employee.get("salary").toString());
 
         return shadowDatabaseService.addEmployee(
-                name, salary);
+                name,
+                salary);
     }
 
-    // Get Employees
+    // ==============================
+    // GET EMPLOYEES
+    // ==============================
     @GetMapping("/employees")
     public List<String> getEmployees() {
 
         return shadowDatabaseService.getEmployees();
+    }
+
+    // ==============================
+    // EXECUTE SQL
+    // ==============================
+    @PostMapping("/sql")
+    public Map<String, Object> executeSql(
+            @RequestBody Map<String, String> request) {
+
+        String sql = request.get("sql");
+
+        return shadowDatabaseService.executeSql(sql);
     }
 }
