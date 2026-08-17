@@ -24,29 +24,52 @@ public class ShadowDatabaseService {
     // ==============================
     public String createShadowDatabase() {
 
-        if (postgresContainer != null && postgresContainer.isRunning()) {
+        if (postgresContainer != null
+                && postgresContainer.isRunning()) {
+
             return "Shadow PostgreSQL container is already running.";
         }
 
-        postgresContainer = new PostgreSQLContainer("postgres:16-alpine")
+        postgresContainer = new PostgreSQLContainer(
+                "postgres:16-alpine")
                 .withDatabaseName("shadowbase")
                 .withUsername("postgres")
                 .withPassword("postgres");
 
         postgresContainer.start();
+        
 
-        String jdbcUrl = postgresContainer.getJdbcUrl();
-        String username = postgresContainer.getUsername();
-        String password = postgresContainer.getPassword();
+        String jdbcUrl =
+                postgresContainer.getJdbcUrl();
 
-        System.out.println("====================================");
-        System.out.println("Shadow PostgreSQL Started");
-        System.out.println("JDBC URL: " + jdbcUrl);
-        System.out.println("Username: " + username);
-        System.out.println("Password: " + password);
-        System.out.println("====================================");
+        String username =
+                postgresContainer.getUsername();
 
-        createTable(jdbcUrl, username, password);
+        String password =
+                postgresContainer.getPassword();
+
+        System.out.println(
+                "====================================");
+
+        System.out.println(
+                "Shadow PostgreSQL Started");
+
+        System.out.println(
+                "JDBC URL: " + jdbcUrl);
+
+        System.out.println(
+                "Username: " + username);
+
+        System.out.println(
+                "Password: " + password);
+
+        System.out.println(
+                "====================================");
+
+        createTable(
+                jdbcUrl,
+                username,
+                password);
 
         return "Shadow PostgreSQL container started successfully.\n"
                 + "JDBC URL: " + jdbcUrl;
@@ -88,7 +111,8 @@ public class ShadowDatabaseService {
 
             throw new RuntimeException(
                     "Failed to create employees table: "
-                            + e.getMessage(), e);
+                            + e.getMessage(),
+                    e);
         }
     }
 
@@ -98,10 +122,12 @@ public class ShadowDatabaseService {
     public String getStatus() {
 
         if (postgresContainer == null) {
+
             return "STOPPED - Shadow database has not been created.";
         }
 
         if (postgresContainer.isRunning()) {
+
             return "RUNNING - Shadow database is running.";
         }
 
@@ -114,10 +140,12 @@ public class ShadowDatabaseService {
     public String stopShadowDatabase() {
 
         if (postgresContainer == null) {
+
             return "Shadow database has not been created.";
         }
 
         if (!postgresContainer.isRunning()) {
+
             return "Shadow database is already stopped.";
         }
 
@@ -139,7 +167,8 @@ public class ShadowDatabaseService {
                 "INSERT INTO employees (name, salary) VALUES (?, ?)";
 
         try (
-                Connection connection = getConnection();
+                Connection connection =
+                        getConnection();
 
                 PreparedStatement statement =
                         connection.prepareStatement(sql)
@@ -156,7 +185,8 @@ public class ShadowDatabaseService {
 
             throw new RuntimeException(
                     "Failed to add employee: "
-                            + e.getMessage(), e);
+                            + e.getMessage(),
+                    e);
         }
     }
 
@@ -167,13 +197,16 @@ public class ShadowDatabaseService {
 
         checkDatabaseRunning();
 
-        List<String> employees = new ArrayList<>();
+        List<String> employees =
+                new ArrayList<>();
 
         String sql =
-                "SELECT id, name, salary FROM employees ORDER BY id";
+                "SELECT id, name, salary "
+                        + "FROM employees ORDER BY id";
 
         try (
-                Connection connection = getConnection();
+                Connection connection =
+                        getConnection();
 
                 Statement statement =
                         connection.createStatement();
@@ -185,9 +218,12 @@ public class ShadowDatabaseService {
             while (resultSet.next()) {
 
                 String employee =
-                        "ID: " + resultSet.getInt("id")
-                        + ", Name: " + resultSet.getString("name")
-                        + ", Salary: " + resultSet.getDouble("salary");
+                        "ID: "
+                        + resultSet.getInt("id")
+                        + ", Name: "
+                        + resultSet.getString("name")
+                        + ", Salary: "
+                        + resultSet.getDouble("salary");
 
                 employees.add(employee);
             }
@@ -198,32 +234,39 @@ public class ShadowDatabaseService {
 
             throw new RuntimeException(
                     "Failed to get employees: "
-                            + e.getMessage(), e);
+                            + e.getMessage(),
+                    e);
         }
     }
 
     // ==============================
     // EXECUTE SELECT SQL
     // ==============================
-    public Map<String, Object> executeSql(String sql) {
+    public Map<String, Object> executeSql(
+            String sql) {
 
         checkDatabaseRunning();
 
-        if (sql == null || sql.trim().isEmpty()) {
+        if (sql == null
+                || sql.trim().isEmpty()) {
+
             throw new IllegalArgumentException(
                     "SQL query cannot be empty.");
         }
 
         String cleanSql = sql.trim();
 
-        // For the first version, allow only SELECT queries.
-        if (!cleanSql.toLowerCase().startsWith("select")) {
+        if (!cleanSql
+                .toLowerCase()
+                .startsWith("select")) {
+
             throw new IllegalArgumentException(
                     "Only SELECT queries are supported currently.");
         }
 
         try (
-                Connection connection = getConnection();
+                Connection connection =
+                        getConnection();
 
                 Statement statement =
                         connection.createStatement();
@@ -235,9 +278,6 @@ public class ShadowDatabaseService {
             ResultSetMetaData metaData =
                     resultSet.getMetaData();
 
-            int columnCount =
-                    metaData.getColumnCount();
-
             List<Map<String, Object>> rows =
                     new ArrayList<>();
 
@@ -246,7 +286,9 @@ public class ShadowDatabaseService {
                 Map<String, Object> row =
                         new LinkedHashMap<>();
 
-                for (int i = 1; i <= columnCount; i++) {
+                for (int i = 1;
+                     i <= metaData.getColumnCount();
+                     i++) {
 
                     String columnName =
                             metaData.getColumnLabel(i);
@@ -254,7 +296,9 @@ public class ShadowDatabaseService {
                     Object value =
                             resultSet.getObject(i);
 
-                    row.put(columnName, value);
+                    row.put(
+                            columnName,
+                            value);
                 }
 
                 rows.add(row);
@@ -263,10 +307,21 @@ public class ShadowDatabaseService {
             Map<String, Object> response =
                     new LinkedHashMap<>();
 
-            response.put("success", true);
-            response.put("rowCount", rows.size());
-            response.put("columns", getColumnNames(metaData));
-            response.put("rows", rows);
+            response.put(
+                    "success",
+                    true);
+
+            response.put(
+                    "rowCount",
+                    rows.size());
+
+            response.put(
+                    "columns",
+                    getColumnNames(metaData));
+
+            response.put(
+                    "rows",
+                    rows);
 
             return response;
 
@@ -274,7 +329,8 @@ public class ShadowDatabaseService {
 
             throw new RuntimeException(
                     "SQL execution failed: "
-                            + e.getMessage(), e);
+                            + e.getMessage(),
+                    e);
         }
     }
 
@@ -285,7 +341,8 @@ public class ShadowDatabaseService {
             ResultSetMetaData metaData)
             throws Exception {
 
-        List<String> columns = new ArrayList<>();
+        List<String> columns =
+                new ArrayList<>();
 
         for (int i = 1;
              i <= metaData.getColumnCount();
@@ -308,6 +365,32 @@ public class ShadowDatabaseService {
                 postgresContainer.getJdbcUrl(),
                 postgresContainer.getUsername(),
                 postgresContainer.getPassword());
+    }
+
+    // ==============================
+    // CONNECTION INFORMATION
+    // ==============================
+    public Map<String, String>
+    getDatabaseConnectionInfo() {
+
+        checkDatabaseRunning();
+
+        Map<String, String> info =
+                new LinkedHashMap<>();
+
+        info.put(
+                "jdbcUrl",
+                postgresContainer.getJdbcUrl());
+
+        info.put(
+                "username",
+                postgresContainer.getUsername());
+
+        info.put(
+                "password",
+                postgresContainer.getPassword());
+
+        return info;
     }
 
     // ==============================
