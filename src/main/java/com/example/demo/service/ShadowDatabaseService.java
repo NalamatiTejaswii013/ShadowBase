@@ -22,7 +22,7 @@ public class ShadowDatabaseService {
     // ==============================
     // CREATE SHADOW DATABASE
     // ==============================
-    public String createShadowDatabase() {
+    public synchronized String createShadowDatabase() {
 
         if (postgresContainer != null
                 && postgresContainer.isRunning()) {
@@ -37,7 +37,6 @@ public class ShadowDatabaseService {
                 .withPassword("postgres");
 
         postgresContainer.start();
-        
 
         String jdbcUrl =
                 postgresContainer.getJdbcUrl();
@@ -168,7 +167,7 @@ public class ShadowDatabaseService {
 
         try (
                 Connection connection =
-                        getConnection();
+                        getShadowConnection();
 
                 PreparedStatement statement =
                         connection.prepareStatement(sql)
@@ -206,7 +205,7 @@ public class ShadowDatabaseService {
 
         try (
                 Connection connection =
-                        getConnection();
+                        getShadowConnection();
 
                 Statement statement =
                         connection.createStatement();
@@ -266,7 +265,7 @@ public class ShadowDatabaseService {
 
         try (
                 Connection connection =
-                        getConnection();
+                        getShadowConnection();
 
                 Statement statement =
                         connection.createStatement();
@@ -356,10 +355,12 @@ public class ShadowDatabaseService {
     }
 
     // ==============================
-    // DATABASE CONNECTION
+    // SHADOW DATABASE CONNECTION
     // ==============================
-    private Connection getConnection()
+    public Connection getShadowConnection()
             throws Exception {
+
+        checkDatabaseRunning();
 
         return DriverManager.getConnection(
                 postgresContainer.getJdbcUrl(),
