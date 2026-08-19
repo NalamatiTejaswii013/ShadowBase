@@ -1,7 +1,15 @@
 package com.example.demo.service;
 
+import jakarta.annotation.PostConstruct;
+
 import org.springframework.stereotype.Service;
+import org.testcontainers.containers.BindMode;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -9,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,9 +28,38 @@ public class ShadowDatabaseService {
 
     private PostgreSQLContainer postgresContainer;
 
-    // ==============================
+    // ==========================================
+    // AUTOMATICALLY CREATE SHADOW DATABASE
+    // ==========================================
+
+    @PostConstruct
+    public void initializeShadowDatabase() {
+
+        System.out.println();
+        System.out.println("====================================");
+        System.out.println("INITIALIZING SHADOW DATABASE");
+        System.out.println("====================================");
+
+        try {
+
+            createShadowDatabase();
+
+            System.out.println(
+                    "Shadow database initialized successfully.");
+
+        } catch (Exception e) {
+
+            System.err.println(
+                    "Failed to initialize shadow database.");
+
+            e.printStackTrace();
+        }
+    }
+
+    // ==========================================
     // CREATE SHADOW DATABASE
-    // ==============================
+    // ==========================================
+
     public synchronized String createShadowDatabase() {
 
         if (postgresContainer != null
@@ -30,53 +68,159 @@ public class ShadowDatabaseService {
             return "Shadow PostgreSQL container is already running.";
         }
 
-        postgresContainer = new PostgreSQLContainer(
-                "postgres:16-alpine")
-                .withDatabaseName("shadowbase")
-                .withUsername("postgres")
-                .withPassword("postgres");
+        try {
 
-        postgresContainer.start();
+            // ==========================================
+            // CREATE PERSISTENT DATA DIRECTORY
+            // ==========================================
 
-        String jdbcUrl =
-                postgresContainer.getJdbcUrl();
+            Path dataDirectory =
+                    Paths.get(
+                            System.getProperty("user.dir"),
+                            "shadowbase-data"
+                    ).toAbsolutePath();
 
-        String username =
-                postgresContainer.getUsername();
+            Files.createDirectories(dataDirectory);
 
-        String password =
-                postgresContainer.getPassword();
+            System.out.println(
+                    "Shadow database data directory:");
 
-        System.out.println(
-                "====================================");
+            System.out.println(
+                    dataDirectory);
 
-        System.out.println(
-                "Shadow PostgreSQL Started");
+            // ==========================================
+            // CREATE POSTGRES CONTAINER
+            // ==========================================
 
-        System.out.println(
-                "JDBC URL: " + jdbcUrl);
+            postgresContainer =
+                    new PostgreSQLContainer(
+                            "postgres:16-alpine")
+                            .withDatabaseName("shadowbase")
+                            .withUsername("postgres")
+                            .withPassword("postgres")
+                            .withFileSystemBind(
+                                    dataDirectory.toString(),
+                                    "/var/lib/postgresql/data",
+                                    BindMode.READ_WRITE)
+                            .waitingFor(
+                                    Wait.forListeningPort());
 
-        System.out.println(
-                "Username: " + username);
+            // ==========================================
+            // START POSTGRESQL
+            // ==========================================
 
-        System.out.println(
-                "Password: " + password);
+            postgresContainer.start();
 
-        System.out.println(
-                "====================================");
+            System.out.println(
+                    "PostgreSQL container started.");
 
-        createTable(
-                jdbcUrl,
-                username,
-                password);
+            // ==========================================
+            // WAIT FOR POSTGRESQL
+            // ==========================================
 
-        return "Shadow PostgreSQL container started successfully.\n"
-                + "JDBC URL: " + jdbcUrl;
+            waitForPostgres();
+
+            String jdbcUrl =
+                    postgresContainer.getJdbcUrl();
+
+            String username =
+                    postgresContainer.getUsername();
+
+            String password =
+                    postgresContainer.getPassword();
+
+            System.out.println(
+                    "====================================");
+
+            System.out.println(
+                    "Shadow PostgreSQL Started");
+
+            System.out.println(
+                    "JDBC URL: " + jdbcUrl);
+
+            System.out.println(
+                    "Username: " + username);
+
+            System.out.println(
+                    "====================================");
+
+            // ==========================================
+            // CREATE EMPLOYEES TABLE
+            // ==========================================
+
+            createTable(
+                    jdbcUrl,
+                    username,
+                    password);
+
+            return
+                    "Shadow PostgreSQL container started successfully.";
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Failed to create Shadow Database: "
+                            + e.getMessage(),
+                    e);
+        }
     }
 
-    // ==============================
+    // ==========================================
+    // WAIT FOR POSTGRESQL
+    // ==========================================
+
+    private void waitForPostgres() {
+
+        int maxAttempts = 30;
+
+        for (int attempt = 1;
+             attempt <= maxAttempts;
+             attempt++) {
+
+            try (
+                    Connection connection =
+                            DriverManager.getConnection(
+                                    postgresContainer.getJdbcUrl(),
+                                    postgresContainer.getUsername(),
+                                    postgresContainer.getPassword())
+            ) {
+
+                System.out.println(
+                        "PostgreSQL is ready to accept connections.");
+
+                return;
+
+            } catch (Exception e) {
+
+                System.out.println(
+                        "Waiting for PostgreSQL... attempt "
+                                + attempt
+                                + "/"
+                                + maxAttempts);
+
+                try {
+
+                    Thread.sleep(1000);
+
+                } catch (InterruptedException interruptedException) {
+
+                    Thread.currentThread().interrupt();
+
+                    throw new RuntimeException(
+                            "Interrupted while waiting for PostgreSQL.",
+                            interruptedException);
+                }
+            }
+        }
+
+        throw new RuntimeException(
+                "PostgreSQL did not become ready within 30 seconds.");
+    }
+
+    // ==========================================
     // CREATE EMPLOYEES TABLE
-    // ==============================
+    // ==========================================
+
     private void createTable(
             String jdbcUrl,
             String username,
@@ -84,7 +228,7 @@ public class ShadowDatabaseService {
 
         String sql = """
                 CREATE TABLE IF NOT EXISTS employees (
-                    id SERIAL PRIMARY KEY,
+                    id INTEGER PRIMARY KEY,
                     name VARCHAR(100),
                     salary NUMERIC(10,2)
                 )
@@ -115,47 +259,56 @@ public class ShadowDatabaseService {
         }
     }
 
-    // ==============================
+    // ==========================================
     // CHECK STATUS
-    // ==============================
+    // ==========================================
+
     public String getStatus() {
 
         if (postgresContainer == null) {
 
-            return "STOPPED - Shadow database has not been created.";
+            return
+                    "STOPPED - Shadow database has not been created.";
         }
 
         if (postgresContainer.isRunning()) {
 
-            return "RUNNING - Shadow database is running.";
+            return
+                    "RUNNING - Shadow database is running.";
         }
 
-        return "STOPPED - Shadow database is stopped.";
+        return
+                "STOPPED - Shadow database is stopped.";
     }
 
-    // ==============================
+    // ==========================================
     // STOP DATABASE
-    // ==============================
+    // ==========================================
+
     public String stopShadowDatabase() {
 
         if (postgresContainer == null) {
 
-            return "Shadow database has not been created.";
+            return
+                    "Shadow database has not been created.";
         }
 
         if (!postgresContainer.isRunning()) {
 
-            return "Shadow database is already stopped.";
+            return
+                    "Shadow database is already stopped.";
         }
 
         postgresContainer.stop();
 
-        return "Shadow PostgreSQL container stopped successfully.";
+        return
+                "Shadow PostgreSQL container stopped successfully.";
     }
 
-    // ==============================
+    // ==========================================
     // ADD EMPLOYEE
-    // ==============================
+    // ==========================================
+
     public String addEmployee(
             String name,
             double salary) {
@@ -178,7 +331,8 @@ public class ShadowDatabaseService {
 
             statement.executeUpdate();
 
-            return "Employee added successfully.";
+            return
+                    "Employee added successfully.";
 
         } catch (Exception e) {
 
@@ -189,9 +343,10 @@ public class ShadowDatabaseService {
         }
     }
 
-    // ==============================
+    // ==========================================
     // GET EMPLOYEES
-    // ==============================
+    // ==========================================
+
     public List<String> getEmployees() {
 
         checkDatabaseRunning();
@@ -218,11 +373,11 @@ public class ShadowDatabaseService {
 
                 String employee =
                         "ID: "
-                        + resultSet.getInt("id")
-                        + ", Name: "
-                        + resultSet.getString("name")
-                        + ", Salary: "
-                        + resultSet.getDouble("salary");
+                                + resultSet.getInt("id")
+                                + ", Name: "
+                                + resultSet.getString("name")
+                                + ", Salary: "
+                                + resultSet.getDouble("salary");
 
                 employees.add(employee);
             }
@@ -238,9 +393,10 @@ public class ShadowDatabaseService {
         }
     }
 
-    // ==============================
+    // ==========================================
     // EXECUTE SELECT SQL
-    // ==============================
+    // ==========================================
+
     public Map<String, Object> executeSql(
             String sql) {
 
@@ -253,7 +409,8 @@ public class ShadowDatabaseService {
                     "SQL query cannot be empty.");
         }
 
-        String cleanSql = sql.trim();
+        String cleanSql =
+                sql.trim();
 
         if (!cleanSql
                 .toLowerCase()
@@ -333,9 +490,10 @@ public class ShadowDatabaseService {
         }
     }
 
-    // ==============================
+    // ==========================================
     // GET COLUMN NAMES
-    // ==============================
+    // ==========================================
+
     private List<String> getColumnNames(
             ResultSetMetaData metaData)
             throws Exception {
@@ -354,9 +512,10 @@ public class ShadowDatabaseService {
         return columns;
     }
 
-    // ==============================
-    // SHADOW DATABASE CONNECTION
-    // ==============================
+    // ==========================================
+    // GET SHADOW CONNECTION
+    // ==========================================
+
     public Connection getShadowConnection()
             throws Exception {
 
@@ -368,9 +527,10 @@ public class ShadowDatabaseService {
                 postgresContainer.getPassword());
     }
 
-    // ==============================
+    // ==========================================
     // CONNECTION INFORMATION
-    // ==============================
+    // ==========================================
+
     public Map<String, String>
     getDatabaseConnectionInfo() {
 
@@ -394,9 +554,10 @@ public class ShadowDatabaseService {
         return info;
     }
 
-    // ==============================
+    // ==========================================
     // CHECK DATABASE
-    // ==============================
+    // ==========================================
+
     private void checkDatabaseRunning() {
 
         if (postgresContainer == null) {

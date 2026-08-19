@@ -21,8 +21,6 @@ public class MigrationController {
         this.migrationService =
                 migrationService;
     }
-    
-
     // ==========================================
     // START MIGRATION
     // ==========================================

@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -35,13 +36,42 @@ public class KafkaCdcConsumer {
             topics = "shadowbase.public.employees",
             groupId = "shadowbase-consumer"
     )
-    public void consume(String message) {
+    public void consume(
+            ConsumerRecord<String, String> record) {
 
         System.out.println();
         System.out.println("====================================");
         System.out.println("CDC EVENT RECEIVED");
         System.out.println("====================================");
+
+        // ==========================================
+        // GET MESSAGE FROM KAFKA RECORD
+        // ==========================================
+
+        String message = record.value();
+
+        // ==========================================
+        // HANDLE KAFKA TOMBSTONE
+        // ==========================================
+
+        if (message == null
+                || message.trim().isEmpty()) {
+
+            System.out.println(
+                    "Kafka tombstone message received. Ignoring.");
+
+            System.out.println(
+                    "Kafka offset: "
+                            + record.offset());
+
+            return;
+        }
+
         System.out.println(message);
+
+        // ==========================================
+        // PROCESS CDC EVENT
+        // ==========================================
 
         try {
 
@@ -51,31 +81,62 @@ public class KafkaCdcConsumer {
             JsonNode payload =
                     root.path("payload");
 
+            // ==========================================
+            // CHECK PAYLOAD
+            // ==========================================
+
+            if (payload.isMissingNode()
+                    || payload.isNull()) {
+
+                System.out.println(
+                        "CDC payload is empty. Ignoring message.");
+
+                return;
+            }
+
+            // ==========================================
+            // GET OPERATION
+            // ==========================================
+
             String operation =
                     payload.path("op").asText();
 
             System.out.println(
-                    "CDC Operation: " + operation);
+                    "CDC Operation: "
+                            + operation);
+
+            // ==========================================
+            // HANDLE OPERATION
+            // ==========================================
 
             switch (operation) {
 
                 case "r":
+
                     handleSnapshot(payload);
+
                     break;
 
                 case "c":
+
                     handleInsert(payload);
+
                     break;
 
                 case "u":
+
                     handleUpdate(payload);
+
                     break;
 
                 case "d":
+
                     handleDelete(payload);
+
                     break;
 
                 default:
+
                     System.out.println(
                             "Unknown CDC operation: "
                                     + operation);
@@ -96,7 +157,8 @@ public class KafkaCdcConsumer {
     // ==========================================
 
     private void handleSnapshot(
-            JsonNode payload) throws Exception {
+            JsonNode payload)
+            throws Exception {
 
         JsonNode after =
                 payload.path("after");
@@ -139,7 +201,8 @@ public class KafkaCdcConsumer {
     // ==========================================
 
     private void handleInsert(
-            JsonNode payload) throws Exception {
+            JsonNode payload)
+            throws Exception {
 
         JsonNode after =
                 payload.path("after");
@@ -182,7 +245,8 @@ public class KafkaCdcConsumer {
     // ==========================================
 
     private void handleUpdate(
-            JsonNode payload) throws Exception {
+            JsonNode payload)
+            throws Exception {
 
         JsonNode after =
                 payload.path("after");
@@ -220,9 +284,17 @@ public class KafkaCdcConsumer {
             try (PreparedStatement statement =
                          connection.prepareStatement(sql)) {
 
-                statement.setString(1, name);
-                statement.setBigDecimal(2, salary);
-                statement.setInt(3, id);
+                statement.setString(
+                        1,
+                        name);
+
+                statement.setBigDecimal(
+                        2,
+                        salary);
+
+                statement.setInt(
+                        3,
+                        id);
 
                 statement.executeUpdate();
             }
@@ -237,7 +309,8 @@ public class KafkaCdcConsumer {
     // ==========================================
 
     private void handleDelete(
-            JsonNode payload) throws Exception {
+            JsonNode payload)
+            throws Exception {
 
         JsonNode before =
                 payload.path("before");
@@ -263,7 +336,9 @@ public class KafkaCdcConsumer {
             try (PreparedStatement statement =
                          connection.prepareStatement(sql)) {
 
-                statement.setInt(1, id);
+                statement.setInt(
+                        1,
+                        id);
 
                 statement.executeUpdate();
             }
@@ -303,9 +378,17 @@ public class KafkaCdcConsumer {
             try (PreparedStatement statement =
                          connection.prepareStatement(sql)) {
 
-                statement.setInt(1, id);
-                statement.setString(2, name);
-                statement.setBigDecimal(3, salary);
+                statement.setInt(
+                        1,
+                        id);
+
+                statement.setString(
+                        2,
+                        name);
+
+                statement.setBigDecimal(
+                        3,
+                        salary);
 
                 statement.executeUpdate();
             }
