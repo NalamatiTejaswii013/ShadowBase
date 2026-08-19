@@ -18,14 +18,20 @@ public class KafkaCdcConsumer {
 
     private final ShadowDatabaseService shadowDatabaseService;
 
+    private final MetricsService metricsService;
+
     private final ObjectMapper objectMapper =
             new ObjectMapper();
 
     public KafkaCdcConsumer(
-            ShadowDatabaseService shadowDatabaseService) {
+            ShadowDatabaseService shadowDatabaseService,
+            MetricsService metricsService) {
 
         this.shadowDatabaseService =
                 shadowDatabaseService;
+
+        this.metricsService =
+                metricsService;
     }
 
     // ==========================================
@@ -144,6 +150,12 @@ public class KafkaCdcConsumer {
 
         } catch (Exception e) {
 
+            // ==========================================
+            // RECORD CDC ERROR
+            // ==========================================
+
+            metricsService.recordError();
+
             System.err.println(
                     "CDC processing failed: "
                             + e.getMessage());
@@ -187,10 +199,20 @@ public class KafkaCdcConsumer {
                         + ", Salary: "
                         + salary);
 
+        // ==========================================
+        // REPLAY SNAPSHOT
+        // ==========================================
+
         upsertEmployee(
                 id,
                 name,
                 salary);
+
+        // ==========================================
+        // RECORD SUCCESSFUL REPLAY
+        // ==========================================
+
+        metricsService.recordReplay();
 
         System.out.println(
                 "SNAPSHOT replayed successfully.");
@@ -231,10 +253,20 @@ public class KafkaCdcConsumer {
                         + ", Salary: "
                         + salary);
 
+        // ==========================================
+        // REPLAY INSERT
+        // ==========================================
+
         upsertEmployee(
                 id,
                 name,
                 salary);
+
+        // ==========================================
+        // RECORD SUCCESSFUL REPLAY
+        // ==========================================
+
+        metricsService.recordReplay();
 
         System.out.println(
                 "INSERT replayed successfully.");
@@ -300,6 +332,12 @@ public class KafkaCdcConsumer {
             }
         }
 
+        // ==========================================
+        // RECORD SUCCESSFUL REPLAY
+        // ==========================================
+
+        metricsService.recordReplay();
+
         System.out.println(
                 "UPDATE replayed successfully.");
     }
@@ -343,6 +381,12 @@ public class KafkaCdcConsumer {
                 statement.executeUpdate();
             }
         }
+
+        // ==========================================
+        // RECORD SUCCESSFUL REPLAY
+        // ==========================================
+
+        metricsService.recordReplay();
 
         System.out.println(
                 "DELETE replayed successfully.");
@@ -409,7 +453,10 @@ public class KafkaCdcConsumer {
             return BigDecimal.ZERO;
         }
 
-        // Normal JSON number
+        // ==========================================
+        // NORMAL JSON NUMBER
+        // ==========================================
+
         if (salaryNode.isNumber()) {
 
             return salaryNode.decimalValue();
