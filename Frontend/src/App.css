@@ -28,7 +28,9 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* HEADER */
+/* =====================================
+   HEADER
+===================================== */
 
 .header {
   background: #17202a;
@@ -75,7 +77,9 @@ button:disabled {
   background: #95a5a6;
 }
 
-/* DASHBOARD */
+/* =====================================
+   DASHBOARD
+===================================== */
 
 .dashboard {
   max-width: 1200px;
@@ -83,7 +87,9 @@ button:disabled {
   padding: 0 20px;
 }
 
-/* CARD */
+/* =====================================
+   CARD
+===================================== */
 
 .card {
   background: white;
@@ -99,7 +105,9 @@ button:disabled {
   margin-top: 0;
 }
 
-/* STATUS */
+/* =====================================
+   STATUS
+===================================== */
 
 .status {
   display: inline-block;
@@ -124,7 +132,9 @@ button:disabled {
   color: #383d41;
 }
 
-/* BUTTONS */
+/* =====================================
+   BUTTONS
+===================================== */
 
 .buttons {
   display: flex;
@@ -132,7 +142,9 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-/* MESSAGE */
+/* =====================================
+   MESSAGE
+===================================== */
 
 .message {
   margin-top: 20px;
@@ -142,7 +154,9 @@ button:disabled {
   white-space: pre-wrap;
 }
 
-/* SECTION HEADER */
+/* =====================================
+   SECTION HEADER
+===================================== */
 
 .section-header {
   display: flex;
@@ -156,7 +170,52 @@ button:disabled {
   margin-top: -8px;
 }
 
-/* SQL EDITOR */
+/* =====================================
+   METRICS DASHBOARD
+===================================== */
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 25px;
+  margin-bottom: 25px;
+}
+
+.metric-card {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.08);
+
+  text-align: center;
+}
+
+.metric-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #777;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 42px;
+  font-weight: bold;
+  color: #17202a;
+  margin-bottom: 8px;
+}
+
+.metric-description {
+  color: #777;
+  font-size: 14px;
+}
+
+/* =====================================
+   SQL EDITOR
+===================================== */
 
 .editor-container {
   margin-top: 20px;
@@ -169,7 +228,9 @@ button:disabled {
   padding: 12px 22px;
 }
 
-/* SQL ERROR */
+/* =====================================
+   SQL ERROR
+===================================== */
 
 .query-error {
   margin-top: 15px;
@@ -180,7 +241,9 @@ button:disabled {
   color: #721c24;
 }
 
-/* RESULT TABLE */
+/* =====================================
+   RESULT TABLE
+===================================== */
 
 .table-container {
   overflow-x: auto;
@@ -215,7 +278,9 @@ tr:hover {
   border-radius: 6px;
 }
 
-/* EMPLOYEES */
+/* =====================================
+   EMPLOYEES
+===================================== */
 
 .employee-list {
   margin-top: 20px;
@@ -230,7 +295,9 @@ tr:hover {
   color: #777;
 }
 
-/* MOBILE */
+/* =====================================
+   MOBILE
+===================================== */
 
 @media (max-width: 700px) {
 
@@ -248,6 +315,10 @@ tr:hover {
   .section-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
   }
 
 }

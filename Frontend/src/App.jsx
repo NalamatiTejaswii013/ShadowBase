@@ -5,7 +5,6 @@ import "./App.css";
 
 const API_URL = "http://localhost:8080/api/shadow";
 
-
 function App() {
   const [status, setStatus] = useState("UNKNOWN");
   const [message, setMessage] = useState("");
@@ -22,8 +21,23 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   // =====================================
+  // METRICS
+  // =====================================
+
+  const [metrics, setMetrics] = useState({
+    queriesReplayed: 0,
+    errors: 0,
+    totalEvents: 0,
+    errorRate: 0
+  });
+
+  const [metricsLoading, setMetricsLoading] =
+    useState(false);
+
+  // =====================================
   // CHECK DATABASE STATUS
   // =====================================
+
   const checkStatus = async () => {
     try {
       const response = await axios.get(
@@ -53,19 +67,80 @@ function App() {
   };
 
   // =====================================
-  // AUTOMATIC STATUS CHECK
+  // GET METRICS
   // =====================================
+
+  const getMetrics = async () => {
+
+    try {
+
+      setMetricsLoading(true);
+
+      const response = await axios.get(
+        `${API_URL}/metrics`
+      );
+
+      setMetrics({
+        queriesReplayed:
+          response.data.queriesReplayed ?? 0,
+
+        errors:
+          response.data.errors ?? 0,
+
+        totalEvents:
+          response.data.totalEvents ?? 0,
+
+        errorRate:
+          response.data.errorRate ?? 0
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Failed to load metrics:",
+        error
+      );
+
+    } finally {
+
+      setMetricsLoading(false);
+
+    }
+  };
+
+  // =====================================
+  // AUTOMATIC STATUS + LIVE METRICS REFRESH
+  // =====================================
+
   useEffect(() => {
+
+    // Initial status check
     checkStatus();
+
+    // Initial metrics load
+    getMetrics();
+
+    // Refresh metrics every 5 seconds
+    const metricsInterval = setInterval(() => {
+
+      getMetrics();
+
+    }, 5000);
+
+    // Cleanup interval when component unmounts
+    return () => {
+
+      clearInterval(metricsInterval);
+
+    };
+
   }, []);
 
   // =====================================
   // CREATE DATABASE
-  
   // =====================================
-  const createDatabase = async () => {
 
-    
+  const createDatabase = async () => {
 
     try {
 
@@ -76,6 +151,9 @@ function App() {
       setMessage(response.data);
 
       setStatus("RUNNING");
+
+      // Refresh metrics
+      getMetrics();
 
     } catch (error) {
 
@@ -91,6 +169,7 @@ function App() {
   // =====================================
   // STOP DATABASE
   // =====================================
+
   const stopDatabase = async () => {
 
     try {
@@ -123,6 +202,7 @@ function App() {
   // =====================================
   // GET EMPLOYEES
   // =====================================
+
   const getEmployees = async () => {
 
     try {
@@ -153,6 +233,7 @@ function App() {
   // =====================================
   // EXECUTE SQL
   // =====================================
+
   const executeSql = async () => {
 
     if (!sql.trim()) {
@@ -187,6 +268,9 @@ function App() {
         "SQL executed successfully."
       );
 
+      // Refresh metrics after SQL execution
+      getMetrics();
+
     } catch (error) {
 
       console.error(error);
@@ -214,20 +298,24 @@ function App() {
 
       setQueryError(errorMessage);
 
+      // Refresh metrics even after an error
+      getMetrics();
+
     } finally {
 
       setLoading(false);
+
     }
   };
 
   // =====================================
   // EDITOR CHANGE
   // =====================================
+
   const handleEditorChange = (value) => {
 
     setSql(value || "");
 
-    // Clear previous error when user edits SQL
     if (queryError) {
       setQueryError("");
     }
@@ -266,7 +354,6 @@ function App() {
         </div>
 
       </header>
-
 
       <main className="dashboard">
 
@@ -309,15 +396,66 @@ function App() {
           {message && (
 
             <div className="message">
-
               {message}
-
             </div>
 
           )}
 
         </section>
 
+        {/* ================= METRICS ================= */}
+
+        <section className="metrics-grid">
+
+          {/* QUERIES REPLAYED */}
+
+          <div className="metric-card">
+
+            <div className="metric-title">
+              Queries Replayed
+            </div>
+
+            <div className="metric-value">
+
+              {metricsLoading
+                ? "..."
+                : metrics.queriesReplayed}
+
+            </div>
+
+            <div className="metric-description">
+              Successfully replayed CDC events
+            </div>
+
+          </div>
+
+          {/* ERROR RATE */}
+
+          <div className="metric-card">
+
+            <div className="metric-title">
+              Error Rate
+            </div>
+
+            <div className="metric-value">
+
+              {metricsLoading
+                ? "..."
+                : `${metrics.errorRate}%`}
+
+            </div>
+
+            <div className="metric-description">
+
+              {metrics.errors} error(s) out of{" "}
+
+              {metrics.totalEvents} event(s)
+
+            </div>
+
+          </div>
+
+        </section>
 
         {/* ================= SQL EDITOR ================= */}
 
@@ -352,7 +490,6 @@ function App() {
 
           </div>
 
-
           <div className="editor-container">
 
             <Editor
@@ -374,7 +511,6 @@ function App() {
 
           </div>
 
-
           {/* SQL ERROR */}
 
           {queryError && (
@@ -388,7 +524,6 @@ function App() {
           )}
 
         </section>
-
 
         {/* ================= QUERY RESULT ================= */}
 
@@ -413,7 +548,6 @@ function App() {
 
             </div>
 
-
             {queryResult.rows &&
             queryResult.rows.length > 0 ? (
 
@@ -429,9 +563,7 @@ function App() {
                         (column) => (
 
                           <th key={column}>
-
                             {column}
-
                           </th>
 
                         )
@@ -440,7 +572,6 @@ function App() {
                     </tr>
 
                   </thead>
-
 
                   <tbody>
 
@@ -491,7 +622,6 @@ function App() {
 
         )}
 
-
         {/* ================= EMPLOYEES ================= */}
 
         <section className="card">
@@ -507,7 +637,6 @@ function App() {
             </button>
 
           </div>
-
 
           {employees.length === 0 ? (
 
