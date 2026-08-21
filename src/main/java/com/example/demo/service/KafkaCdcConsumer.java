@@ -214,6 +214,16 @@ public class KafkaCdcConsumer {
 
         metricsService.recordReplay();
 
+        // ==========================================
+        // RECORD EVENT DETAILS
+        // ==========================================
+
+        metricsService.recordEvent(
+                "SNAPSHOT",
+                id,
+                name,
+                salary.toString());
+
         System.out.println(
                 "SNAPSHOT replayed successfully.");
     }
@@ -267,6 +277,16 @@ public class KafkaCdcConsumer {
         // ==========================================
 
         metricsService.recordReplay();
+
+        // ==========================================
+        // RECORD EVENT DETAILS
+        // ==========================================
+
+        metricsService.recordEvent(
+                "INSERT",
+                id,
+                name,
+                salary.toString());
 
         System.out.println(
                 "INSERT replayed successfully.");
@@ -338,6 +358,16 @@ public class KafkaCdcConsumer {
 
         metricsService.recordReplay();
 
+        // ==========================================
+        // RECORD EVENT DETAILS
+        // ==========================================
+
+        metricsService.recordEvent(
+                "UPDATE",
+                id,
+                name,
+                salary.toString());
+
         System.out.println(
                 "UPDATE replayed successfully.");
     }
@@ -361,6 +391,13 @@ public class KafkaCdcConsumer {
 
         int id =
                 before.path("id").asInt();
+
+        String name =
+                before.path("name").asText();
+
+        BigDecimal salary =
+                decodeSalary(
+                        before.path("salary"));
 
         Connection connection =
                 shadowDatabaseService
@@ -387,6 +424,16 @@ public class KafkaCdcConsumer {
         // ==========================================
 
         metricsService.recordReplay();
+
+        // ==========================================
+        // RECORD EVENT DETAILS
+        // ==========================================
+
+        metricsService.recordEvent(
+                "DELETE",
+                id,
+                name,
+                salary.toString());
 
         System.out.println(
                 "DELETE replayed successfully.");

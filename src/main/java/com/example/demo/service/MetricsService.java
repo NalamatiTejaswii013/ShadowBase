@@ -2,7 +2,9 @@ package com.example.demo.service;
 
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -17,6 +19,15 @@ public class MetricsService {
 
     private final AtomicLong totalEvents =
             new AtomicLong(0);
+
+    // ==========================================
+    // RECENT CDC EVENTS
+    // ==========================================
+
+    private final List<Map<String, Object>> recentEvents =
+            new ArrayList<>();
+
+    private static final int MAX_EVENTS = 20;
 
     // ==========================================
     // RECORD SUCCESSFUL CDC EVENT
@@ -39,6 +50,60 @@ public class MetricsService {
     }
 
     // ==========================================
+    // RECORD CDC EVENT DETAILS
+    // ==========================================
+
+    public synchronized void recordEvent(
+            String operation,
+            int id,
+            String name,
+            String salary) {
+
+        Map<String, Object> event =
+                new LinkedHashMap<>();
+
+        event.put(
+                "operation",
+                operation);
+
+        event.put(
+                "id",
+                id);
+
+        event.put(
+                "name",
+                name);
+
+        event.put(
+                "salary",
+                salary);
+
+        event.put(
+                "timestamp",
+                System.currentTimeMillis());
+
+        recentEvents.add(0, event);
+
+        // Keep only the latest 20 events
+        if (recentEvents.size() > MAX_EVENTS) {
+
+            recentEvents.remove(
+                    recentEvents.size() - 1);
+        }
+    }
+
+    // ==========================================
+    // GET RECENT CDC EVENTS
+    // ==========================================
+
+    public synchronized List<Map<String, Object>>
+    getRecentEvents() {
+
+        return new ArrayList<>(
+                recentEvents);
+    }
+
+    // ==========================================
     // GET METRICS
     // ==========================================
 
@@ -58,7 +123,8 @@ public class MetricsService {
         if (total > 0) {
 
             errorRate =
-                    ((double) errorCount / total) * 100.0;
+                    ((double) errorCount / total)
+                            * 100.0;
         }
 
         Map<String, Object> metrics =
@@ -78,7 +144,8 @@ public class MetricsService {
 
         metrics.put(
                 "errorRate",
-                Math.round(errorRate * 100.0) / 100.0);
+                Math.round(errorRate * 100.0)
+                        / 100.0);
 
         return metrics;
     }
@@ -87,10 +154,12 @@ public class MetricsService {
     // RESET METRICS
     // ==========================================
 
-    public void resetMetrics() {
+    public synchronized void resetMetrics() {
 
         queriesReplayed.set(0);
         errors.set(0);
         totalEvents.set(0);
+
+        recentEvents.clear();
     }
 }

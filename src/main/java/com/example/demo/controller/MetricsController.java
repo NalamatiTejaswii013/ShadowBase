@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -30,6 +31,16 @@ public class MetricsController {
     public Map<String, Object> getMetrics() {
 
         return metricsService.getMetrics();
+    }
+
+    // ==========================================
+    // GET RECENT CDC EVENTS
+    // ==========================================
+
+    @GetMapping("/events")
+    public List<Map<String, Object>> getRecentEvents() {
+
+        return metricsService.getRecentEvents();
     }
 
     // ==========================================
