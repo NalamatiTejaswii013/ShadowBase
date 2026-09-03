@@ -20,18 +20,30 @@ public class KafkaCdcConsumer {
 
     private final MetricsService metricsService;
 
+    private final ErrorLogService errorLogService;
+
+    private final TrafficReplayService trafficReplayService;
+
     private final ObjectMapper objectMapper =
             new ObjectMapper();
 
     public KafkaCdcConsumer(
             ShadowDatabaseService shadowDatabaseService,
-            MetricsService metricsService) {
+            MetricsService metricsService,
+            ErrorLogService errorLogService,
+            TrafficReplayService trafficReplayService) {
 
         this.shadowDatabaseService =
                 shadowDatabaseService;
 
         this.metricsService =
                 metricsService;
+
+        this.errorLogService =
+                errorLogService;
+
+        this.trafficReplayService =
+                trafficReplayService;
     }
 
     // ==========================================
@@ -49,10 +61,6 @@ public class KafkaCdcConsumer {
         System.out.println("====================================");
         System.out.println("CDC EVENT RECEIVED");
         System.out.println("====================================");
-
-        // ==========================================
-        // GET MESSAGE FROM KAFKA RECORD
-        // ==========================================
 
         String message = record.value();
 
@@ -143,7 +151,7 @@ public class KafkaCdcConsumer {
 
                 default:
 
-                    System.out.println(
+                    throw new IllegalArgumentException(
                             "Unknown CDC operation: "
                                     + operation);
             }
@@ -155,6 +163,10 @@ public class KafkaCdcConsumer {
             // ==========================================
 
             metricsService.recordError();
+
+            errorLogService.recordError(
+                    "CDC_PROCESSING",
+                    e.getMessage());
 
             System.err.println(
                     "CDC processing failed: "
@@ -199,24 +211,16 @@ public class KafkaCdcConsumer {
                         + ", Salary: "
                         + salary);
 
-        // ==========================================
-        // REPLAY SNAPSHOT
-        // ==========================================
-
         upsertEmployee(
                 id,
                 name,
                 salary);
 
         // ==========================================
-        // RECORD SUCCESSFUL REPLAY
+        // RECORD METRICS
         // ==========================================
 
         metricsService.recordReplay();
-
-        // ==========================================
-        // RECORD EVENT DETAILS
-        // ==========================================
 
         metricsService.recordEvent(
                 "SNAPSHOT",
@@ -224,13 +228,19 @@ public class KafkaCdcConsumer {
                 name,
                 salary.toString());
 
+        // ==========================================
+        // RECORD TRAFFIC REPLAY
+        // ==========================================
+
+        trafficReplayService.recordReplay(
+                "SNAPSHOT",
+                "employees",
+                id);
+
         System.out.println(
                 "SNAPSHOT replayed successfully.");
     }
 
-    
-    
-    
     // ==========================================
     // INSERT
     // ==========================================
@@ -266,30 +276,31 @@ public class KafkaCdcConsumer {
                         + ", Salary: "
                         + salary);
 
-        // ==========================================
-        // REPLAY INSERT
-        // ==========================================
-
         upsertEmployee(
                 id,
                 name,
                 salary);
 
         // ==========================================
-        // RECORD SUCCESSFUL REPLAY
+        // RECORD METRICS
         // ==========================================
 
         metricsService.recordReplay();
-
-        // ==========================================
-        // RECORD EVENT DETAILS
-        // ==========================================
 
         metricsService.recordEvent(
                 "INSERT",
                 id,
                 name,
                 salary.toString());
+
+        // ==========================================
+        // RECORD TRAFFIC REPLAY
+        // ==========================================
+
+        trafficReplayService.recordReplay(
+                "INSERT",
+                "employees",
+                id);
 
         System.out.println(
                 "INSERT replayed successfully.");
@@ -356,20 +367,25 @@ public class KafkaCdcConsumer {
         }
 
         // ==========================================
-        // RECORD SUCCESSFUL REPLAY
+        // RECORD METRICS
         // ==========================================
 
         metricsService.recordReplay();
-
-        // ==========================================
-        // RECORD EVENT DETAILS
-        // ==========================================
 
         metricsService.recordEvent(
                 "UPDATE",
                 id,
                 name,
                 salary.toString());
+
+        // ==========================================
+        // RECORD TRAFFIC REPLAY
+        // ==========================================
+
+        trafficReplayService.recordReplay(
+                "UPDATE",
+                "employees",
+                id);
 
         System.out.println(
                 "UPDATE replayed successfully.");
@@ -423,20 +439,25 @@ public class KafkaCdcConsumer {
         }
 
         // ==========================================
-        // RECORD SUCCESSFUL REPLAY
+        // RECORD METRICS
         // ==========================================
 
         metricsService.recordReplay();
-
-        // ==========================================
-        // RECORD EVENT DETAILS
-        // ==========================================
 
         metricsService.recordEvent(
                 "DELETE",
                 id,
                 name,
                 salary.toString());
+
+        // ==========================================
+        // RECORD TRAFFIC REPLAY
+        // ==========================================
+
+        trafficReplayService.recordReplay(
+                "DELETE",
+                "employees",
+                id);
 
         System.out.println(
                 "DELETE replayed successfully.");
@@ -503,21 +524,20 @@ public class KafkaCdcConsumer {
             return BigDecimal.ZERO;
         }
 
-        // ==========================================
-        // NORMAL JSON NUMBER
-        // ==========================================
-
-        
-        
         if (salaryNode.isNumber()) {
+
             return salaryNode.decimalValue();
         }
+
         String encoded =
                 salaryNode.asText();
+
         try {
+
             byte[] bytes =
                     Base64.getDecoder()
                             .decode(encoded);
+
             BigInteger unscaled =
                     new BigInteger(bytes);
 
@@ -535,8 +555,3 @@ public class KafkaCdcConsumer {
         }
     }
 }
-
-
-
-	
-
