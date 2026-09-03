@@ -550,10 +550,8 @@ public class ShadowDatabaseService {
         info.put(
                 "password",
                 postgresContainer.getPassword());
-
         return info;
     }
-
     // ==========================================
     // CHECK DATABASE
     // ==========================================
@@ -567,7 +565,6 @@ public class ShadowDatabaseService {
         }
 
         if (!postgresContainer.isRunning()) {
-
             throw new RuntimeException(
                     "Shadow database is not running.");
         }

@@ -1,5 +1,4 @@
 package com.example.demo.Config;
-
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
@@ -15,12 +14,13 @@ import java.util.Map;
 
 @Configuration
 public class KafkaConfig {
-
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
 
         Map<String, Object> properties =
                 new HashMap<>();
+        
+        
 
         properties.put(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
@@ -31,9 +31,9 @@ public class KafkaConfig {
                 "shadowbase-consumer");
 
         properties.put(
+        		
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
                 "earliest");
-
         properties.put(
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 StringDeserializer.class);
@@ -45,7 +45,6 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(
                 properties);
     }
-
     @Bean(name = "kafkaListenerContainerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, String>
     kafkaListenerContainerFactory() {
@@ -56,7 +55,14 @@ public class KafkaConfig {
 
         factory.setConsumerFactory(
                 consumerFactory());
-
         return factory;
+         
     }
 }
+
+
+
+
+
+
+

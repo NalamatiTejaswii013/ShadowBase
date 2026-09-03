@@ -13,22 +13,17 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/source")
 public class SourceDatabaseController {
-
     private final SourceDatabaseService sourceDatabaseService;
-
     public SourceDatabaseController(
             SourceDatabaseService sourceDatabaseService) {
-
         this.sourceDatabaseService =
                 sourceDatabaseService;
     }
-
     // ==========================================
     // CREATE SOURCE DATABASE
     // ==========================================
     @PostMapping("/create")
     public String createSourceDatabase() {
-
         return sourceDatabaseService
                 .createSourceDatabase();
     }
@@ -42,13 +37,11 @@ public class SourceDatabaseController {
         return sourceDatabaseService
                 .getStatus();
     }
-
     // ==========================================
     // GET SOURCE EMPLOYEES
     // ==========================================
     @GetMapping("/employees")
     public List<Map<String, Object>> getEmployees() {
-
         return sourceDatabaseService
                 .getEmployees();
     }
@@ -63,3 +56,5 @@ public class SourceDatabaseController {
                 .stopSourceDatabase();
     }
 }
+
+

@@ -1,43 +1,35 @@
 package com.example.demo.service;
-
 import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-
 @Service
 public class MetricsService {
-
     private final AtomicLong queriesReplayed =
             new AtomicLong(0);
-
     private final AtomicLong errors =
             new AtomicLong(0);
-
     private final AtomicLong totalEvents =
             new AtomicLong(0);
-
+    
+    
     // ==========================================
     // RECENT CDC EVENTS
     // ==========================================
-
     private final List<Map<String, Object>> recentEvents =
             new ArrayList<>();
-
     private static final int MAX_EVENTS = 20;
-
     // ==========================================
     // RECORD SUCCESSFUL CDC EVENT
     // ==========================================
-
     public void recordReplay() {
-
         totalEvents.incrementAndGet();
         queriesReplayed.incrementAndGet();
     }
+    
+    
 
     // ==========================================
     // RECORD CDC ERROR
@@ -137,7 +129,6 @@ public class MetricsService {
         metrics.put(
                 "errors",
                 errorCount);
-
         metrics.put(
                 "totalEvents",
                 total);
@@ -146,10 +137,8 @@ public class MetricsService {
                 "errorRate",
                 Math.round(errorRate * 100.0)
                         / 100.0);
-
         return metrics;
     }
-
     // ==========================================
     // RESET METRICS
     // ==========================================

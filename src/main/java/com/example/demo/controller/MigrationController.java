@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
-
 @RestController
 @RequestMapping("/api/migration")
 public class MigrationController {
@@ -50,6 +49,8 @@ public class MigrationController {
                 .compareDatabases();
     }
 }
+
+
 
 
 

@@ -228,6 +228,9 @@ public class KafkaCdcConsumer {
                 "SNAPSHOT replayed successfully.");
     }
 
+    
+    
+    
     // ==========================================
     // INSERT
     // ==========================================
@@ -504,20 +507,17 @@ public class KafkaCdcConsumer {
         // NORMAL JSON NUMBER
         // ==========================================
 
+        
+        
         if (salaryNode.isNumber()) {
-
             return salaryNode.decimalValue();
         }
-
         String encoded =
                 salaryNode.asText();
-
         try {
-
             byte[] bytes =
                     Base64.getDecoder()
                             .decode(encoded);
-
             BigInteger unscaled =
                     new BigInteger(bytes);
 
@@ -535,3 +535,8 @@ public class KafkaCdcConsumer {
         }
     }
 }
+
+
+
+	
+
