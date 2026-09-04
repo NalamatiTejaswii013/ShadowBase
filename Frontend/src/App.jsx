@@ -35,6 +35,26 @@ function App() {
     useState(false);
 
   // =====================================
+  // RECENT CDC EVENTS
+  // =====================================
+
+  const [recentEvents, setRecentEvents] =
+    useState([]);
+
+  const [eventsLoading, setEventsLoading] =
+    useState(false);
+
+  // =====================================
+  // TRAFFIC REPLAY
+  // =====================================
+
+  const [replayHistory, setReplayHistory] =
+    useState([]);
+
+  const [replayLoading, setReplayLoading] =
+    useState(false);
+
+  // =====================================
   // CHECK DATABASE STATUS
   // =====================================
 
@@ -55,7 +75,6 @@ function App() {
       }
 
     } catch (error) {
-
       console.error(error);
 
       setStatus("STOPPED");
@@ -71,9 +90,7 @@ function App() {
   // =====================================
 
   const getMetrics = async () => {
-
     try {
-
       setMetricsLoading(true);
 
       const response = await axios.get(
@@ -95,43 +112,127 @@ function App() {
       });
 
     } catch (error) {
-
       console.error(
         "Failed to load metrics:",
         error
       );
 
     } finally {
-
       setMetricsLoading(false);
-
     }
   };
 
   // =====================================
-  // AUTOMATIC STATUS + LIVE METRICS REFRESH
+  // GET RECENT CDC EVENTS
+  // =====================================
+
+  const getRecentEvents = async () => {
+    try {
+      setEventsLoading(true);
+
+      const response = await axios.get(
+        `${API_URL}/metrics/events`
+      );
+
+      setRecentEvents(
+        Array.isArray(response.data)
+          ? response.data
+          : []
+      );
+
+    } catch (error) {
+      console.error(
+        "Failed to load CDC events:",
+        error
+      );
+
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // =====================================
+  // GET TRAFFIC REPLAY HISTORY
+  // =====================================
+
+  const getReplayHistory = async () => {
+    try {
+      setReplayLoading(true);
+
+      const response = await axios.get(
+        `${API_URL}/replay`
+      );
+
+      setReplayHistory(
+        Array.isArray(response.data)
+          ? response.data
+          : []
+      );
+
+    } catch (error) {
+      console.error(
+        "Failed to load traffic replay history:",
+        error
+      );
+
+    } finally {
+      setReplayLoading(false);
+    }
+  };
+
+  // =====================================
+  // CLEAR TRAFFIC REPLAY HISTORY
+  // =====================================
+
+  const clearReplayHistory = async () => {
+    try {
+      setReplayLoading(true);
+
+      await axios.delete(
+        `${API_URL}/replay`
+      );
+
+      setReplayHistory([]);
+
+      setMessage(
+        "Traffic replay history cleared successfully."
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      setMessage(
+        error.response?.data ||
+        "Failed to clear traffic replay history."
+      );
+
+    } finally {
+      setReplayLoading(false);
+    }
+  };
+
+  // =====================================
+  // AUTOMATIC STATUS + LIVE REFRESH
   // =====================================
 
   useEffect(() => {
-
-    // Initial status check
     checkStatus();
 
-    // Initial metrics load
     getMetrics();
 
-    // Refresh metrics every 5 seconds
-    const metricsInterval = setInterval(() => {
+    getRecentEvents();
 
-      getMetrics();
+    getReplayHistory();
 
-    }, 5000);
+    const refreshInterval =
+      setInterval(() => {
+        getMetrics();
+        getRecentEvents();
+        getReplayHistory();
+      }, 5000);
 
-    // Cleanup interval when component unmounts
     return () => {
-
-      clearInterval(metricsInterval);
-
+      clearInterval(refreshInterval);
     };
 
   }, []);
@@ -141,9 +242,7 @@ function App() {
   // =====================================
 
   const createDatabase = async () => {
-
     try {
-
       const response = await axios.post(
         `${API_URL}/create`
       );
@@ -152,11 +251,11 @@ function App() {
 
       setStatus("RUNNING");
 
-      // Refresh metrics
       getMetrics();
+      getRecentEvents();
+      getReplayHistory();
 
     } catch (error) {
-
       console.error(error);
 
       setMessage(
@@ -171,9 +270,7 @@ function App() {
   // =====================================
 
   const stopDatabase = async () => {
-
     try {
-
       const response = await axios.post(
         `${API_URL}/stop`
       );
@@ -182,14 +279,15 @@ function App() {
 
       setStatus("STOPPED");
 
-      // Clear old SQL result
       setQueryResult(null);
 
-      // Clear employees
       setEmployees([]);
 
-    } catch (error) {
+      setRecentEvents([]);
 
+      setReplayHistory([]);
+
+    } catch (error) {
       console.error(error);
 
       setMessage(
@@ -204,9 +302,7 @@ function App() {
   // =====================================
 
   const getEmployees = async () => {
-
     try {
-
       const response = await axios.get(
         `${API_URL}/employees`
       );
@@ -220,7 +316,6 @@ function App() {
       );
 
     } catch (error) {
-
       console.error(error);
 
       setMessage(
@@ -235,9 +330,7 @@ function App() {
   // =====================================
 
   const executeSql = async () => {
-
     if (!sql.trim()) {
-
       setQueryError(
         "Please enter a SQL query."
       );
@@ -252,7 +345,6 @@ function App() {
     setQueryResult(null);
 
     try {
-
       const response = await axios.post(
         `${API_URL}/sql`,
         {
@@ -268,29 +360,26 @@ function App() {
         "SQL executed successfully."
       );
 
-      // Refresh metrics after SQL execution
       getMetrics();
+      getRecentEvents();
+      getReplayHistory();
 
     } catch (error) {
-
       console.error(error);
 
       let errorMessage =
         "SQL execution failed.";
 
       if (error.response?.data) {
-
         if (
           typeof error.response.data === "string"
         ) {
-
           errorMessage =
             error.response.data;
 
         } else if (
           error.response.data.message
         ) {
-
           errorMessage =
             error.response.data.message;
         }
@@ -298,13 +387,12 @@ function App() {
 
       setQueryError(errorMessage);
 
-      // Refresh metrics even after an error
       getMetrics();
+      getRecentEvents();
+      getReplayHistory();
 
     } finally {
-
       setLoading(false);
-
     }
   };
 
@@ -313,7 +401,6 @@ function App() {
   // =====================================
 
   const handleEditorChange = (value) => {
-
     setSql(value || "");
 
     if (queryError) {
@@ -394,11 +481,9 @@ function App() {
           </div>
 
           {message && (
-
             <div className="message">
               {message}
             </div>
-
           )}
 
         </section>
@@ -406,8 +491,6 @@ function App() {
         {/* ================= METRICS ================= */}
 
         <section className="metrics-grid">
-
-          {/* QUERIES REPLAYED */}
 
           <div className="metric-card">
 
@@ -428,8 +511,6 @@ function App() {
             </div>
 
           </div>
-
-          {/* ERROR RATE */}
 
           <div className="metric-card">
 
@@ -454,6 +535,248 @@ function App() {
             </div>
 
           </div>
+
+        </section>
+
+        {/* ================= RECENT CDC EVENTS ================= */}
+
+        <section className="card">
+
+          <div className="section-header">
+
+            <div>
+
+              <h2>Recent CDC Events</h2>
+
+              <p className="subtitle">
+                Latest database change events
+              </p>
+
+            </div>
+
+            <button
+              onClick={getRecentEvents}
+              disabled={eventsLoading}
+            >
+              {eventsLoading
+                ? "Refreshing..."
+                : "Refresh Events"}
+            </button>
+
+          </div>
+
+          {eventsLoading &&
+          recentEvents.length === 0 ? (
+
+            <p className="empty">
+              Loading CDC events...
+            </p>
+
+          ) : recentEvents.length === 0 ? (
+
+            <p className="empty">
+              No CDC events recorded yet.
+            </p>
+
+          ) : (
+
+            <div className="events-table-container">
+
+              <table className="events-table">
+
+                <thead>
+
+                  <tr>
+
+                    <th>Operation</th>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Salary</th>
+                    <th>Time</th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {recentEvents.map(
+                    (event, index) => (
+
+                      <tr key={index}>
+
+                        <td>
+
+                          <span
+                            className={`operation-badge ${String(
+                              event.operation || ""
+                            ).toLowerCase()}`}
+                          >
+                            {event.operation}
+                          </span>
+
+                        </td>
+
+                        <td>
+                          {event.id}
+                        </td>
+
+                        <td>
+                          {event.name}
+                        </td>
+
+                        <td>
+                          {event.salary}
+                        </td>
+
+                        <td>
+
+                          {event.timestamp
+                            ? new Date(
+                                event.timestamp
+                              ).toLocaleTimeString()
+                            : "-"}
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          )}
+
+        </section>
+
+        {/* ================= TRAFFIC REPLAY ================= */}
+
+        <section className="card">
+
+          <div className="section-header">
+
+            <div>
+
+              <h2>Traffic Replay History</h2>
+
+              <p className="subtitle">
+                CDC operations successfully replayed
+                to the Shadow Database
+              </p>
+
+            </div>
+
+            <div className="buttons">
+
+              <button
+                onClick={getReplayHistory}
+                disabled={replayLoading}
+              >
+                {replayLoading
+                  ? "Refreshing..."
+                  : "Refresh Replay"}
+              </button>
+
+              <button
+                onClick={clearReplayHistory}
+                disabled={
+                  replayLoading ||
+                  replayHistory.length === 0
+                }
+              >
+                Clear History
+              </button>
+
+            </div>
+
+          </div>
+
+          {replayLoading &&
+          replayHistory.length === 0 ? (
+
+            <p className="empty">
+              Loading traffic replay history...
+            </p>
+
+          ) : replayHistory.length === 0 ? (
+
+            <p className="empty">
+              No traffic replay history recorded yet.
+            </p>
+
+          ) : (
+
+            <div className="events-table-container">
+
+              <table className="events-table">
+
+                <thead>
+
+                  <tr>
+
+                    <th>Operation</th>
+                    <th>Table</th>
+                    <th>ID</th>
+                    <th>Time</th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {replayHistory.map(
+                    (replay, index) => (
+
+                      <tr key={index}>
+
+                        <td>
+
+                          <span
+                            className={`operation-badge ${String(
+                              replay.operation || ""
+                            ).toLowerCase()}`}
+                          >
+                            {replay.operation}
+                          </span>
+
+                        </td>
+
+                        <td>
+                          {replay.table}
+                        </td>
+
+                        <td>
+                          {replay.id}
+                        </td>
+
+                        <td>
+
+                          {replay.timestamp
+                            ? new Date(
+                                replay.timestamp
+                              ).toLocaleTimeString()
+                            : "-"}
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          )}
 
         </section>
 
@@ -510,8 +833,6 @@ function App() {
             />
 
           </div>
-
-          {/* SQL ERROR */}
 
           {queryError && (
 
@@ -641,9 +962,7 @@ function App() {
           {employees.length === 0 ? (
 
             <p className="empty">
-
               No employees loaded.
-
             </p>
 
           ) : (
