@@ -33,7 +33,16 @@ public class SourceDatabaseService {
                 "postgres:16-alpine")
                 .withDatabaseName("sourcedb")
                 .withUsername("postgres")
-                .withPassword("postgres");
+                .withPassword("postgres")
+                .withCommand(
+                        "postgres",
+                        "-c",
+                        "wal_level=logical",
+                        "-c",
+                        "max_replication_slots=10",
+                        "-c",
+                        "max_wal_senders=10"
+                );
 
         postgresContainer.start();
 
@@ -60,6 +69,9 @@ public class SourceDatabaseService {
 
         System.out.println(
                 "Password: " + password);
+
+        System.out.println(
+                "WAL Level: logical");
 
         System.out.println(
                 "====================================");
@@ -339,5 +351,5 @@ public class SourceDatabaseService {
             throw new RuntimeException(
                     "Source database is not running.");
         }
-    }        
+    }
 }

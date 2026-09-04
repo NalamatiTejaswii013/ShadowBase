@@ -32,9 +32,6 @@ public class MigrationService {
                 shadowDatabaseService;
     }
 
-    // ==========================================
-    // START MIGRATION
-    // ==========================================
     public synchronized Map<String, Object> startMigration() {
 
         migrationStatus = "STARTING";
@@ -43,7 +40,6 @@ public class MigrationService {
 
         try {
 
-            // Check both databases
             Map<String, String> sourceInfo =
                     sourceDatabaseService
                             .getDatabaseConnectionInfo();
@@ -53,10 +49,6 @@ public class MigrationService {
                             .getDatabaseConnectionInfo();
 
             migrationStatus = "READING_SOURCE";
-
-            // ----------------------------------
-            // READ SOURCE EMPLOYEES
-            // ----------------------------------
 
             String sourceSql =
                     "SELECT id, name, salary "
@@ -76,10 +68,6 @@ public class MigrationService {
                             sourceStatement.executeQuery(
                                     sourceSql)
             ) {
-
-                // ----------------------------------
-                // PREPARE SHADOW INSERT
-                // ----------------------------------
 
                 String shadowSql = """
                         INSERT INTO employees
@@ -105,6 +93,18 @@ public class MigrationService {
 
                     migrationStatus =
                             "MIGRATING_DATA";
+
+                    // Clear existing Shadow data
+                    // so Shadow becomes an exact copy
+                    // of Source after migration.
+                    try (
+                            Statement deleteStatement =
+                                    shadowConnection.createStatement()
+                    ) {
+
+                        deleteStatement.executeUpdate(
+                                "DELETE FROM employees");
+                    }
 
                     while (resultSet.next()) {
 
@@ -198,9 +198,6 @@ public class MigrationService {
         }
     }
 
-    // ==========================================
-    // MIGRATION STATUS
-    // ==========================================
     public Map<String, Object> getMigrationStatus() {
 
         Map<String, Object> response =
@@ -234,9 +231,6 @@ public class MigrationService {
         return response;
     }
 
-    // ==========================================
-    // COMPARE SOURCE AND SHADOW
-    // ==========================================
     public Map<String, Object> compareDatabases() {
 
         Map<String, String> sourceInfo =
@@ -247,11 +241,89 @@ public class MigrationService {
                 shadowDatabaseService
                         .getDatabaseConnectionInfo();
 
+        Map<Integer, Map<String, Object>> sourceEmployees =
+                getEmployees(sourceInfo);
+
+        Map<Integer, Map<String, Object>> shadowEmployees =
+                getEmployees(shadowInfo);
+
         int sourceCount =
-                getEmployeeCount(sourceInfo);
+                sourceEmployees.size();
 
         int shadowCount =
-                getEmployeeCount(shadowInfo);
+                shadowEmployees.size();
+
+        int missingRows = 0;
+        int extraRows = 0;
+        int dataMismatches = 0;
+
+        // Check for rows that exist in Source
+        // but are missing in Shadow.
+        for (Integer id : sourceEmployees.keySet()) {
+
+            if (!shadowEmployees.containsKey(id)) {
+
+                missingRows++;
+            }
+        }
+
+        // Check for rows that exist in Shadow
+        // but are not present in Source.
+        for (Integer id : shadowEmployees.keySet()) {
+
+            if (!sourceEmployees.containsKey(id)) {
+
+                extraRows++;
+            }
+        }
+
+        // Check data differences for matching IDs.
+        for (Integer id : sourceEmployees.keySet()) {
+
+            if (!shadowEmployees.containsKey(id)) {
+                continue;
+            }
+
+            Map<String, Object> sourceEmployee =
+                    sourceEmployees.get(id);
+
+            Map<String, Object> shadowEmployee =
+                    shadowEmployees.get(id);
+
+            String sourceName =
+                    (String) sourceEmployee.get("name");
+
+            String shadowName =
+                    (String) shadowEmployee.get("name");
+
+            java.math.BigDecimal sourceSalary =
+                    (java.math.BigDecimal)
+                            sourceEmployee.get("salary");
+
+            java.math.BigDecimal shadowSalary =
+                    (java.math.BigDecimal)
+                            shadowEmployee.get("salary");
+
+            boolean nameMismatch =
+                    !java.util.Objects.equals(
+                            sourceName,
+                            shadowName);
+
+            boolean salaryMismatch =
+                    !java.util.Objects.equals(
+                            sourceSalary,
+                            shadowSalary);
+
+            if (nameMismatch || salaryMismatch) {
+
+                dataMismatches++;
+            }
+        }
+
+        boolean matching =
+                missingRows == 0
+                        && extraRows == 0
+                        && dataMismatches == 0;
 
         Map<String, Object> response =
                 new LinkedHashMap<>();
@@ -265,33 +337,39 @@ public class MigrationService {
                 shadowCount);
 
         response.put(
-                "match",
-                sourceCount == shadowCount);
+                "matching",
+                matching);
 
-        if (sourceCount == shadowCount) {
+        response.put(
+                "status",
+                matching
+                        ? "SYNCED"
+                        : "MISMATCH");
 
-            response.put(
-                    "message",
-                    "Source and Shadow row counts match.");
+        response.put(
+                "missingRows",
+                missingRows);
 
-        } else {
+        response.put(
+                "extraRows",
+                extraRows);
 
-            response.put(
-                    "message",
-                    "Source and Shadow row counts do not match.");
-        }
+        response.put(
+                "dataMismatches",
+                dataMismatches);
 
         return response;
     }
 
-    // ==========================================
-    // GET EMPLOYEE COUNT
-    // ==========================================
-    private int getEmployeeCount(
+    private Map<Integer, Map<String, Object>> getEmployees(
             Map<String, String> databaseInfo) {
 
+        Map<Integer, Map<String, Object>> employees =
+                new LinkedHashMap<>();
+
         String sql =
-                "SELECT COUNT(*) FROM employees";
+                "SELECT id, name, salary "
+                        + "FROM employees ORDER BY id";
 
         try (
                 Connection connection =
@@ -307,17 +385,33 @@ public class MigrationService {
                         statement.executeQuery(sql)
         ) {
 
-            if (resultSet.next()) {
+            while (resultSet.next()) {
 
-                return resultSet.getInt(1);
+                int id =
+                        resultSet.getInt("id");
+
+                Map<String, Object> employee =
+                        new LinkedHashMap<>();
+
+                employee.put(
+                        "name",
+                        resultSet.getString("name"));
+
+                employee.put(
+                        "salary",
+                        resultSet.getBigDecimal("salary"));
+
+                employees.put(
+                        id,
+                        employee);
             }
 
-            return 0;
+            return employees;
 
         } catch (Exception e) {
 
             throw new RuntimeException(
-                    "Failed to compare databases: "
+                    "Failed to read employee data: "
                             + e.getMessage(),
                     e);
         }
