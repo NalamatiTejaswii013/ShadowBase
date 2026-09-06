@@ -1,7 +1,6 @@
 package com.example.demo.service;
 
 import org.springframework.stereotype.Service;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -16,83 +15,52 @@ import java.util.Map;
 @Service
 public class SourceDatabaseService {
 
-    private PostgreSQLContainer postgresContainer;
+    // ==========================================
+    // EXISTING DEBEZIUM SOURCE DATABASE
+    // ==========================================
+
+    private final String sourceJdbcUrl =
+            "jdbc:postgresql://localhost:5433/productiondb";
+
+    private final String sourceUsername =
+            "postgres";
+
+    private final String sourcePassword =
+            "postgres";
 
     // ==========================================
-    // CREATE SOURCE DATABASE
+    // CREATE / CHECK SOURCE DATABASE
     // ==========================================
+
     public String createSourceDatabase() {
 
-        if (postgresContainer != null
-                && postgresContainer.isRunning()) {
+        try (Connection connection =
+                     DriverManager.getConnection(
+                             sourceJdbcUrl,
+                             sourceUsername,
+                             sourcePassword)) {
 
-            return "Source PostgreSQL container is already running.";
+            createEmployeesTable(
+                    sourceJdbcUrl,
+                    sourceUsername,
+                    sourcePassword);
+
+            return "Source PostgreSQL database is running successfully.\n"
+                    + "JDBC URL: " + sourceJdbcUrl;
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Failed to connect to source PostgreSQL: "
+                            + e.getMessage(),
+                    e);
         }
-
-        postgresContainer = new PostgreSQLContainer(
-                "postgres:16-alpine")
-                .withDatabaseName("sourcedb")
-                .withUsername("postgres")
-                .withPassword("postgres")
-                .withCommand(
-                        "postgres",
-                        "-c",
-                        "wal_level=logical",
-                        "-c",
-                        "max_replication_slots=10",
-                        "-c",
-                        "max_wal_senders=10"
-                );
-
-        postgresContainer.start();
-
-        String jdbcUrl =
-                postgresContainer.getJdbcUrl();
-
-        String username =
-                postgresContainer.getUsername();
-
-        String password =
-                postgresContainer.getPassword();
-
-        System.out.println(
-                "====================================");
-
-        System.out.println(
-                "Source PostgreSQL Started");
-
-        System.out.println(
-                "JDBC URL: " + jdbcUrl);
-
-        System.out.println(
-                "Username: " + username);
-
-        System.out.println(
-                "Password: " + password);
-
-        System.out.println(
-                "WAL Level: logical");
-
-        System.out.println(
-                "====================================");
-
-        createEmployeesTable(
-                jdbcUrl,
-                username,
-                password);
-
-        insertSampleEmployees(
-                jdbcUrl,
-                username,
-                password);
-
-        return "Source PostgreSQL container started successfully.\n"
-                + "JDBC URL: " + jdbcUrl;
     }
 
     // ==========================================
     // CREATE EMPLOYEES TABLE
     // ==========================================
+
     private void createEmployeesTable(
             String jdbcUrl,
             String username,
@@ -120,7 +88,7 @@ public class SourceDatabaseService {
             statement.executeUpdate(sql);
 
             System.out.println(
-                    "Source employees table created.");
+                    "Source employees table verified.");
 
         } catch (Exception e) {
 
@@ -132,98 +100,29 @@ public class SourceDatabaseService {
     }
 
     // ==========================================
-    // INSERT SAMPLE DATA
+    // GET SOURCE DATABASE STATUS
     // ==========================================
-    private void insertSampleEmployees(
-            String jdbcUrl,
-            String username,
-            String password) {
 
-        String sql = """
-                INSERT INTO employees
-                (name, salary)
-                VALUES (?, ?)
-                """;
+    public String getStatus() {
 
-        try (
-                Connection connection =
-                        DriverManager.getConnection(
-                                jdbcUrl,
-                                username,
-                                password);
+        try (Connection connection =
+                     DriverManager.getConnection(
+                             sourceJdbcUrl,
+                             sourceUsername,
+                             sourcePassword)) {
 
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
-        ) {
-
-            insertEmployee(
-                    statement,
-                    "Tejaswi",
-                    30000);
-
-            insertEmployee(
-                    statement,
-                    "Priyanka",
-                    40000);
-
-            insertEmployee(
-                    statement,
-                    "Rahul",
-                    45000);
-
-            System.out.println(
-                    "Sample source employees inserted.");
+            return "RUNNING - Source database is running.";
 
         } catch (Exception e) {
 
-            throw new RuntimeException(
-                    "Failed to insert source employees: "
-                            + e.getMessage(),
-                    e);
+            return "STOPPED - Source database is not reachable.";
         }
-    }
-
-    // ==========================================
-    // INSERT ONE EMPLOYEE
-    // ==========================================
-    private void insertEmployee(
-            PreparedStatement statement,
-            String name,
-            double salary)
-            throws Exception {
-
-        statement.setString(
-                1,
-                name);
-
-        statement.setDouble(
-                2,
-                salary);
-
-        statement.executeUpdate();
-    }
-
-    // ==========================================
-    // CHECK STATUS
-    // ==========================================
-    public String getStatus() {
-
-        if (postgresContainer == null) {
-
-            return "STOPPED - Source database has not been created.";
-        }
-
-        if (postgresContainer.isRunning()) {
-
-            return "RUNNING - Source database is running.";
-        }
-
-        return "STOPPED - Source database is stopped.";
     }
 
     // ==========================================
     // GET SOURCE EMPLOYEES
     // ==========================================
+
     public List<Map<String, Object>> getEmployees() {
 
         checkDatabaseRunning();
@@ -280,40 +179,31 @@ public class SourceDatabaseService {
     // ==========================================
     // STOP SOURCE DATABASE
     // ==========================================
+
     public String stopSourceDatabase() {
 
-        if (postgresContainer == null) {
-
-            return "Source database has not been created.";
-        }
-
-        if (!postgresContainer.isRunning()) {
-
-            return "Source database is already stopped.";
-        }
-
-        postgresContainer.stop();
-
-        return "Source PostgreSQL container stopped successfully.";
+        return "Source database is managed by Docker "
+                + "and cannot be stopped from the application.";
     }
 
     // ==========================================
     // DATABASE CONNECTION
     // ==========================================
+
     private Connection getConnection()
             throws Exception {
 
         return DriverManager.getConnection(
-                postgresContainer.getJdbcUrl(),
-                postgresContainer.getUsername(),
-                postgresContainer.getPassword());
+                sourceJdbcUrl,
+                sourceUsername,
+                sourcePassword);
     }
 
     // ==========================================
     // CONNECTION INFORMATION
     // ==========================================
-    public Map<String, String>
-    getDatabaseConnectionInfo() {
+
+    public Map<String, String> getDatabaseConnectionInfo() {
 
         checkDatabaseRunning();
 
@@ -322,15 +212,15 @@ public class SourceDatabaseService {
 
         info.put(
                 "jdbcUrl",
-                postgresContainer.getJdbcUrl());
+                sourceJdbcUrl);
 
         info.put(
                 "username",
-                postgresContainer.getUsername());
+                sourceUsername);
 
         info.put(
                 "password",
-                postgresContainer.getPassword());
+                sourcePassword);
 
         return info;
     }
@@ -338,18 +228,24 @@ public class SourceDatabaseService {
     // ==========================================
     // CHECK DATABASE
     // ==========================================
+
     private void checkDatabaseRunning() {
 
-        if (postgresContainer == null) {
+        try (Connection connection =
+                     DriverManager.getConnection(
+                             sourceJdbcUrl,
+                             sourceUsername,
+                             sourcePassword)) {
+
+            // Source database is reachable.
+
+        } catch (Exception e) {
 
             throw new RuntimeException(
-                    "Source database has not been created.");
-        }
-
-        if (!postgresContainer.isRunning()) {
-
-            throw new RuntimeException(
-                    "Source database is not running.");
+                    "Source database is not running "
+                            + "or not reachable: "
+                            + e.getMessage(),
+                    e);
         }
     }
 }
